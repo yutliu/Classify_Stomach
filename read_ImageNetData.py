@@ -1,8 +1,10 @@
-from torchvision import transforms, datasets
+from torchvision import transforms
 import os
 import torch
 from PIL import Image
-import scipy.io as scio
+import cv2
+from utils import getMirrorImage
+import numpy as np
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm']
 
@@ -10,15 +12,15 @@ def ImageNetData(args):
 # data_transform, pay attention that the input of Normalize() is Tensor and the input of RandomResizedCrop() or RandomHorizontalFlip() is PIL Image
     data_transforms = {
         'train': transforms.Compose([
-            transforms.Resize(256),
-            transforms.RandomCrop(224),
+            transforms.Resize((args.img_size, args.img_size)),
+            # transforms.RandomCrop((1920, 1080)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         'val': transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Resize((args.img_size, args.img_size)),
+            # transforms.CenterCrop((1920, 1080)),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
@@ -26,12 +28,8 @@ def ImageNetData(args):
     image_datasets = {}
     #image_datasets['train'] = datasets.ImageFolder(os.path.join(args.data_dir, 'ILSVRC2012_img_train'), data_transforms['train'])
 
-    image_datasets['train'] = ImageNetTrainDataSet(os.path.join(args.data_dir, 'ILSVRC2012_img_train'),
-                                           os.path.join(args.data_dir, 'ILSVRC2012_devkit_t12', 'data', 'meta.mat'),
-                                           data_transforms['train'])
-    image_datasets['val'] = ImageNetValDataSet(os.path.join(args.data_dir, 'ILSVRC2012_img_val'),
-                                               os.path.join(args.data_dir, 'ILSVRC2012_devkit_t12', 'data','ILSVRC2012_validation_ground_truth.txt'),
-                                               data_transforms['val'])
+    image_datasets['train'] = ImageNetTrainDataSet(args.data_dir, data_transforms['train'])
+    image_datasets['val'] = ImageNetValDataSet(args.data_dir, data_transforms['val'])
 
     # wrap your data and label into Tensor
     dataloders = {x: torch.utils.data.DataLoader(image_datasets[x],
@@ -44,15 +42,14 @@ def ImageNetData(args):
     return dataloders, dataset_sizes
 
 class ImageNetTrainDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_dir, img_label, data_transforms):
-        label_array = scio.loadmat(img_label)['synsets']
-        label_dic = {}
-        for i in  range(1000):
-            label_dic[label_array[i][0][1][0]] = i
-        self.img_path = os.listdir(root_dir)
+    def __init__(self, root_dir, data_transforms):
+        dirpath = os.listdir(root_dir)
         self.data_transforms = data_transforms
-        self.label_dic = label_dic
         self.root_dir = root_dir
+        self.classdir = []
+        for eachdir in dirpath:
+            if os.path.isdir(os.path.join(root_dir, eachdir)):
+                self.classdir.append(eachdir)
         self.imgs = self._make_dataset()
 
     def __len__(self):
@@ -60,30 +57,39 @@ class ImageNetTrainDataSet(torch.utils.data.Dataset):
 
     def __getitem__(self, item):
         data, label = self.imgs[item]
-        img = Image.open(data).convert('RGB')
+        # img = Image.open(data).convert('RGB')
+        img = cv2.imread(data)
+        crop_image = getMirrorImage(img)
+        if crop_image.shape[0] == 0:
+            crop_image = img
+
+        # cv2.imshow('Image', img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        crop_image = cv2.cvtColor(crop_image, cv2.COLOR_BGR2RGB)
+        crop_image = Image.fromarray(crop_image)
         if self.data_transforms is not None:
             try:
-                img = self.data_transforms(img)
+                img = self.data_transforms(crop_image)
             except:
                 print("Cannot transform image: {}".format(self.img_path[item]))
         return img, label
 
     def _make_dataset(self):
-        class_to_idx = self.label_dic
         images = []
-        dir = os.path.expanduser(self.root_dir)
-        for target in sorted(os.listdir(dir)):
-            d = os.path.join(dir, target)
-            if not os.path.isdir(d):
-                continue
-
-            for root, _, fnames in sorted(os.walk(d)):
-                for fname in sorted(fnames):
-                    if self._is_image_file(fname):
-                        path = os.path.join(root, fname)
-                        item = (path, class_to_idx[target])
-                        images.append(item)
-
+        classname = list(map(int, self.classdir))
+        classname.sort()
+        for eachclass in classname:
+            classdir_path = os.path.join(self.root_dir, str(eachclass))
+            for num, eachimg in enumerate(os.listdir(classdir_path)):
+                if num > 3000:
+                    break
+                imgpath = os.path.join(classdir_path, eachimg)
+                assert os.path.exists(imgpath), f"{imgpath} is not exists!"
+                assert str(eachclass) in imgpath, f"class is match img!"
+                if self._is_image_file(imgpath):
+                    item = (imgpath, eachclass)
+                    images.append(item)
         return images
 
     def _is_image_file(self, filename):
@@ -98,25 +104,63 @@ class ImageNetTrainDataSet(torch.utils.data.Dataset):
         filename_lower = filename.lower()
         return any(filename_lower.endswith(ext) for ext in IMG_EXTENSIONS)
 
+
+
 class ImageNetValDataSet(torch.utils.data.Dataset):
-    def __init__(self, img_path, img_label, data_transforms):
+    def __init__(self, root_dir, data_transforms):
+        dirpath = os.listdir(root_dir)
         self.data_transforms = data_transforms
-        img_names = os.listdir(img_path)
-        img_names.sort()
-        self.img_path = [os.path.join(img_path, img_name) for img_name in img_names]
-        with open(img_label,"r") as input_file:
-            lines = input_file.readlines()
-            self.img_label = [(int(line)-1) for line in lines]
+        self.root_dir = root_dir
+        self.classdir = []
+        for eachdir in dirpath:
+            if os.path.isdir(os.path.join(root_dir, eachdir)):
+                self.classdir.append(eachdir)
+        self.imgs = self._make_dataset()
 
     def __len__(self):
-        return len(self.img_path)
+        return len(self.imgs)
 
     def __getitem__(self, item):
-        img = Image.open(self.img_path[item]).convert('RGB')
-        label = self.img_label[item]
+        data, label = self.imgs[item]
+        img = cv2.imread(data)
+        crop_image = getMirrorImage(img)
+        if crop_image.shape[0] == 0:
+            crop_image = img
+        crop_image = cv2.cvtColor(crop_image, cv2.COLOR_BGR2RGB)
+        crop_image = Image.fromarray(crop_image)
         if self.data_transforms is not None:
             try:
-                img = self.data_transforms(img)
+                img = self.data_transforms(crop_image)
             except:
                 print("Cannot transform image: {}".format(self.img_path[item]))
         return img, label
+
+    def _make_dataset(self):
+        # class_to_idx = self.label_dic
+        images = []
+        classname = list(map(int, self.classdir))
+        classname.sort()
+        for eachclass in classname:
+            classdir_path = os.path.join(self.root_dir, str(eachclass))
+            for index, eachimg in enumerate(os.listdir(classdir_path)):
+                if index>100:
+                    break
+                imgpath = os.path.join(classdir_path, eachimg)
+                assert os.path.exists(imgpath), f"{imgpath} is not exists!"
+                assert str(eachclass) in imgpath, f"class is match img!"
+                if self._is_image_file(imgpath):
+                    item = (imgpath, eachclass)
+                    images.append(item)
+        return images
+
+    def _is_image_file(self, filename):
+        """Checks if a file is an image.
+
+        Args:
+            filename (string): path to a file
+
+        Returns:
+            bool: True if the filename ends with a known image extension
+        """
+        filename_lower = filename.lower()
+        return any(filename_lower.endswith(ext) for ext in IMG_EXTENSIONS)

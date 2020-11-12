@@ -89,7 +89,7 @@ class Bottleneck(nn.Module):
 
 class ResNeXt(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, num_group=32):
+    def __init__(self, block, layers, num_classes=1000, num_group=32, img_size=224):
         self.inplanes = 64
         super(ResNeXt, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -102,7 +102,8 @@ class ResNeXt(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], num_group, stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], num_group, stride=2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        f = lambda x:math.ceil(x /32 - 7 + 1)
+        self.fc = nn.Linear(512 * block.expansion * f(img_size) * f(img_size), num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
