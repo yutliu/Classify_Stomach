@@ -1,11 +1,6 @@
 import os
 import logging
 import time
-# log.Log_Info('nihaohaohao')  
-# 设置log的存储文件  
-# os.makedirs("./logs")
-# logging.basicConfig(filename = os.path.join('./logs/report_log.txt'), level=logging.DEBUG)
-# logging.info('')
 
 def creat_logger():
     logger = logging.getLogger()
@@ -21,6 +16,6 @@ def creat_logger():
     fhlr.setFormatter(formatter)
     logger.addHandler(chlr)
     logger.addHandler(fhlr)
-    logger.info('This is Logs')
+    logger.info('This is a Log')
     # logger.debug('this is debug')
     return logger

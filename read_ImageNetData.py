@@ -28,17 +28,26 @@ def ImageNetData(args):
     image_datasets = {}
     #image_datasets['train'] = datasets.ImageFolder(os.path.join(args.data_dir, 'ILSVRC2012_img_train'), data_transforms['train'])
 
-    image_datasets['train'] = ImageNetTrainDataSet(args.data_dir, data_transforms['train'])
-    image_datasets['val'] = ImageNetValDataSet(args.data_dir, data_transforms['val'])
+    image_datasets['train'] = ImageNetTrainDataSet(os.path.join(args.data_dir, "train"), data_transforms['train'])
+    image_datasets['val'] = ImageNetValDataSet(os.path.join(args.data_dir, "val"), data_transforms['val'])
+
+    # # wrap your data and label into Tensor
+    # dataloders = {x: torch.utils.data.DataLoader(image_datasets[x],
+    #                                              batch_size=args.batch_size,
+    #                                              shuffle=True,
+    #                                              num_workers=args.num_workers) for x in ['train', 'val']}
+    #
+    #
+    # dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
 
     # wrap your data and label into Tensor
     dataloders = {x: torch.utils.data.DataLoader(image_datasets[x],
                                                  batch_size=args.batch_size,
-                                                 shuffle=True,
-                                                 num_workers=args.num_workers) for x in ['train', 'val']}
+                                                 shuffle=False,
+                                                 num_workers=args.num_workers) for x in ['val']}
 
 
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
+    dataset_sizes = {x: len(image_datasets[x]) for x in ['val']}
     return dataloders, dataset_sizes
 
 class ImageNetTrainDataSet(torch.utils.data.Dataset):
@@ -59,18 +68,18 @@ class ImageNetTrainDataSet(torch.utils.data.Dataset):
         data, label = self.imgs[item]
         # img = Image.open(data).convert('RGB')
         img = cv2.imread(data)
-        crop_image = getMirrorImage(img)
-        if crop_image.shape[0] == 0:
-            crop_image = img
-
+        # crop_image = getMirrorImage(img)
+        # if crop_image.shape[0] == 0:
+        #     crop_image = img
+        #
         # cv2.imshow('Image', img)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-        crop_image = cv2.cvtColor(crop_image, cv2.COLOR_BGR2RGB)
-        crop_image = Image.fromarray(crop_image)
+        # crop_image = cv2.cvtColor(crop_image, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(img)
         if self.data_transforms is not None:
             try:
-                img = self.data_transforms(crop_image)
+                img = self.data_transforms(img)
             except:
                 print("Cannot transform image: {}".format(self.img_path[item]))
         return img, label
@@ -123,14 +132,10 @@ class ImageNetValDataSet(torch.utils.data.Dataset):
     def __getitem__(self, item):
         data, label = self.imgs[item]
         img = cv2.imread(data)
-        crop_image = getMirrorImage(img)
-        if crop_image.shape[0] == 0:
-            crop_image = img
-        crop_image = cv2.cvtColor(crop_image, cv2.COLOR_BGR2RGB)
-        crop_image = Image.fromarray(crop_image)
+        img = Image.fromarray(img)
         if self.data_transforms is not None:
             try:
-                img = self.data_transforms(crop_image)
+                img = self.data_transforms(img)
             except:
                 print("Cannot transform image: {}".format(self.img_path[item]))
         return img, label

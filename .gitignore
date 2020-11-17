@@ -90,3 +90,5 @@ ENV/
 
 #myself
 output/
+models/
+*.pth

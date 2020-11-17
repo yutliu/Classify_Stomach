@@ -25,7 +25,9 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
     for epoch in range(args.start_epoch+1,num_epochs):
 
         # Each epoch has a training and validation phase
-        for phase in ['train','val']:
+        all_phase = dataloders.keys()
+        eval_value = 0.0
+        for phase in all_phase:
             if phase == 'train':
                 running_loss = 0.0
                 running_corrects = 0
@@ -59,13 +61,13 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
 
                     # statistics
                     running_loss += loss.data.item()
-                    running_corrects += torch.sum(preds == labels.data)
+                    running_corrects += torch.sum(preds == labels.data).float()
 
                     batch_loss = running_loss / ((i+1)*args.batch_size)
                     batch_acc = running_corrects / ((i+1)*args.batch_size)
 
                     if i % args.print_freq == 0:
-                        logging.info('[Epoch {}/{}]-[batch:{}/{}] lr:{:.4f} {} Loss: {:.6f}  Acc: {:.4f}  Time: {:.4f} batch/sec'.format(
+                        logging.info('[Epoch {}/{}]-[batch:{}/{}] lr:{:.6f} {} Loss: {:.6f}  Acc: {:.4f}  Time: {:.4f} batch/sec'.format(
                               epoch, num_epochs - 1, i, round(dataset_sizes[phase]/args.batch_size)-1, scheduler.get_lr()[0], phase,
                             batch_loss, batch_acc, args.print_freq/(time.time()-tic_batch)))
                         tic_batch = time.time()
@@ -76,15 +78,15 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
                 logging.info('{} Loss: {:.4f} Acc: {:.4f}'.format(
                     phase, epoch_loss, epoch_acc))
             else:
-                test_model(model, dataloders[phase], logging)
+                eval_value = test_model(model, dataloders[phase], logging, args, epoch)
 
         if (epoch+1) % args.save_epoch_freq == 0:
             if not os.path.exists(args.save_path):
                 os.makedirs(args.save_path)
-            torch.save(model, os.path.join(args.save_path, "epoch{}_loss{:.2f}.pth").format(epoch, epoch_loss))
+            torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.2f}.pth").format(epoch, eval_value))
 
     time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(
+    logging.info('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
 
     # load best model weights
@@ -93,8 +95,8 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description="PyTorch implementation of SENet")
-    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassificationDataset/")
+    parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
+    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassificationDataset_trainval/")
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--img_size', type=int, default=960)
     parser.add_argument('--num_class', type=int, default=29)
@@ -105,8 +107,9 @@ if __name__ == '__main__':
     parser.add_argument('--print_freq', type=int, default=10)
     parser.add_argument('--save_epoch_freq', type=int, default=1)
     parser.add_argument('--save_path', type=str, default="output")
-    parser.add_argument('--resume', type=str, default="", help="For training from one checkpoint")
+    parser.add_argument('--resume', type=str, default="models/20201112_2134_epoch10.pth", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
+    parser.add_argument('--confumatrix_path', type=str, default="output/", help="draw confusion matrix if not empty")
     args = parser.parse_args()
 
     # read data
@@ -114,23 +117,24 @@ if __name__ == '__main__':
 
     # use gpu or not
     use_gpu = torch.cuda.is_available()
-    print("Let's use gpu:{}".format(args.gpus))
+    print("Let's use gpu: {}".format(args.gpus))
 
     # get model
-    model = resnext50(num_classes = args.num_class, img_size=args.img_size)
-
-    if args.resume:
-        if os.path.isfile(args.resume):
-            print(("=> loading checkpoint '{}'".format(args.resume)))
-            checkpoint = torch.load(args.resume)
-            base_dict = {'.'.join(k.split('.')[1:]): v for k, v in list(checkpoint.state_dict().items())}
-            model.load_state_dict(base_dict)
-        else:
-            print(("=> no checkpoint found at '{}'".format(args.resume)))
+    model = resnext50(num_classes=args.num_class, img_size=args.img_size)
 
     if use_gpu:
         model = model.cuda()
         model = torch.nn.DataParallel(model, device_ids=[int(i) for i in args.gpus.strip().split(',')])
+
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print(("=> loading checkpoint '{}'".format(args.resume)))
+            checkpoint = torch.load(args.resume).module.state_dict()
+            # base_dict = {'.'.join(k.split('.')[1:]): v for k, v in list(checkpoint.state_dict().items())}
+            model.module.load_state_dict(checkpoint)
+        else:
+            print(("=> no checkpoint found at '{}'".format(args.resume)))
+
 
     # define loss function
     criterion = nn.CrossEntropyLoss()
@@ -139,7 +143,7 @@ if __name__ == '__main__':
     optimizer_ft = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0001)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=20, gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
     logging = creat_logger()
 
     model = train_model(args=args,
