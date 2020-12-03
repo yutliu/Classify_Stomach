@@ -3,6 +3,10 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
+from pylab import mpl
+
+mpl.rcParams['font.sans-serif'] = ['SimHei']
+
 
 def getMirrorImage(orgin_img):
     gray_img = cv2.cvtColor(orgin_img, cv2.COLOR_BGR2GRAY)
@@ -30,31 +34,46 @@ def getMirrorImage(orgin_img):
     return crop_img
 
 
-#混淆矩阵
-def plot_confusion_matrix(y_true, y_pred, save_path, epoch):
-    confusion_mat = confusion_matrix(y_true,y_pred)
-    class_number = max(y_true) + 1
+def plot_confusion_matrix(y_true, y_pred, save_path, epoch, legend_path):
+    if os.path.exists(os.path.join(legend_path, "README.txt")):
+        with open(os.path.join(legend_path, "README.txt"), 'r', encoding="gbk", errors='ignore') as f:
+            all_lines = f.readlines()
+        class_names = [line.strip('\n').split(',')[1] for line in all_lines]
+
+    #count confusion matrix
+    confusion_mat = confusion_matrix(y_true, y_pred)
+
     fig, ax = plt.subplots()
-    plt.imshow(confusion_mat,interpolation='nearest',cmap=plt.cm.Blues)
-    plt.title('Confusion Matrix')
-    plt.colorbar()
-    tick_marks=np.arange(class_number)
+    im = ax.imshow(confusion_mat, cmap=plt.cm.Blues)
 
-    for label in ax.xaxis.get_ticklabels():
-        # label is a Text instance
-        label.set_rotation(45)
-        label.set_fontsize(7)
+    # show all ticks...
+    ax.set_xticks(np.arange(len(class_names)))
+    ax.set_yticks(np.arange(len(class_names)))
+    #  and label them with the respective list entries
+    ax.set_xticklabels(class_names, fontsize=8)
+    ax.set_yticklabels(class_names, fontsize=8)
+    ax.set_xlabel('Predicted Label', fontsize=20)
+    ax.set_ylabel('True Label', fontsize=20)
 
-    plt.xticks(tick_marks,tick_marks)
-    plt.yticks(tick_marks,tick_marks)
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-    # plt.show()
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    for i in range(len(class_names)):
+        for j in range(len(class_names)):
+            text = ax.text(j, i, confusion_mat[i, j],
+                           ha="center", va="center", color="w")
+
+    ax.set_title("胃镜部位分类混淆矩阵")
+    fig.tight_layout()
+    plt.show()
     plt.savefig(os.path.join(save_path, f"epoch{epoch}.png"))
 
 
 if __name__ == "__main__":
-    y_true = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
-    y_pred = [0, 0, 0, 28, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 25, 1, 0, 1, 1, 1, 1, 1, 1, 25, 25, 28, 24, 28]
-    plot_confusion_matrix(y_true, y_pred, "output", 1)
-    print(1)
+    y_true = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    y_pred = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12]
+    train_path = "/media/adminer/data/Medical/StomachClassification_trainval_14classes/"
+    plot_confusion_matrix(y_true, y_pred, "output", 1, train_path)

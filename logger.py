@@ -17,5 +17,6 @@ def creat_logger():
     logger.addHandler(chlr)
     logger.addHandler(fhlr)
     logger.info('This is a Log')
+    logging.getLogger('matplotlib.font_manager').disabled = True
     # logger.debug('this is debug')
     return logger

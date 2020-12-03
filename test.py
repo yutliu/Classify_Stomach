@@ -29,7 +29,7 @@ def test_model(model, dataloader, logging, args, epoch):
 
     logging.info('test Acc: {:.4f}'.format(epoch_acc))
     if args.confumatrix_path != '':
-        plot_confusion_matrix(all_labels_list, all_pre_list, args.confumatrix_path, epoch)
+        plot_confusion_matrix(all_labels_list, all_pre_list, args.confumatrix_path, epoch, args.data_dir)
     return epoch_acc
 
 

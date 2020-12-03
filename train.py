@@ -1,19 +1,18 @@
 from __future__ import print_function, division
 
-import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-from torch.autograd import Variable
 import time
 import os
-from resnext import *
+from models.resnext import *
 import argparse
-from read_ImageNetData import ImageNetData
-import numpy as np
+from MedicalDataLoader import ImageNetData
 from test import test_model
 from logger import creat_logger
+from models.resnet import resnet152
+from efficientnet_pytorch import EfficientNet
 
 
 def train_model(args, model, criterion, optimizer, scheduler, num_epochs, dataset_sizes, logging):
@@ -26,6 +25,7 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
 
         # Each epoch has a training and validation phase
         all_phase = dataloders.keys()
+        all_phase = ['val']
         eval_value = 0.0
         for phase in all_phase:
             if phase == 'train':
@@ -81,9 +81,7 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
                 eval_value = test_model(model, dataloders[phase], logging, args, epoch)
 
         if (epoch+1) % args.save_epoch_freq == 0:
-            if not os.path.exists(args.save_path):
-                os.makedirs(args.save_path)
-            torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.2f}.pth").format(epoch, eval_value))
+            torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.3f}.pth").format(epoch, eval_value))
 
     time_elapsed = time.time() - since
     logging.info('Training complete in {:.0f}m {:.0f}s'.format(
@@ -96,21 +94,27 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
-    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassificationDataset_trainval/")
-    parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--img_size', type=int, default=960)
-    parser.add_argument('--num_class', type=int, default=29)
+    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
+    # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/imgenet-2/")
+    parser.add_argument('--batch_size', type=int, default=80)
+    parser.add_argument('--img_size', type=int, default=244)
+    parser.add_argument('--num_class', type=int, default=14)
     parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--gpus', type=str, default='0,1')
     parser.add_argument('--print_freq', type=int, default=10)
     parser.add_argument('--save_epoch_freq', type=int, default=1)
     parser.add_argument('--save_path', type=str, default="output")
-    parser.add_argument('--resume', type=str, default="models/20201112_2134_epoch10.pth", help="For training from one checkpoint")
+    parser.add_argument('--resume', type=str, default="", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
     parser.add_argument('--confumatrix_path', type=str, default="output/", help="draw confusion matrix if not empty")
+    parser.add_argument('--model', type=str, default="resnet152", help="choose model")
+
     args = parser.parse_args()
+
+    if not os.path.exists(args.save_path):
+        os.makedirs(args.save_path)
 
     # read data
     dataloders, dataset_sizes = ImageNetData(args)
@@ -120,7 +124,14 @@ if __name__ == '__main__':
     print("Let's use gpu: {}".format(args.gpus))
 
     # get model
-    model = resnext50(num_classes=args.num_class, img_size=args.img_size)
+    if "resnext" in args.model:
+        model = resnext101(num_classes=args.num_class, img_size=args.img_size)
+    elif "resnet" in args.model:
+        model = resnet152(pretrained=True, num_classes=args.num_class)
+    elif "efficientnet" in args.model:
+        model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=args.num_class)
+    else:
+        assert 0, "model name does not exist!"
 
     if use_gpu:
         model = model.cuda()
@@ -140,11 +151,15 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
 
     # Observe that all parameters are being optimized
-    optimizer_ft = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0001)
+    # optimizer_ft = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0001)
+    optimizer_ft = optim.Adam(model.parameters(), lr=args.lr)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=8, gamma=0.1)
     logging = creat_logger()
+
+    for key, value in vars(args).items():
+        logging.info(f"{key}: {value}")
 
     model = train_model(args=args,
                            model=model,

@@ -90,5 +90,6 @@ ENV/
 
 #myself
 output/
-models/
 *.pth
+savepths/
+savepths_14classes
