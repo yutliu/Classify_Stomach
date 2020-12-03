@@ -68,8 +68,8 @@ def plot_confusion_matrix(y_true, y_pred, save_path, epoch, legend_path):
 
     ax.set_title("胃镜部位分类混淆矩阵")
     fig.tight_layout()
-    plt.show()
     plt.savefig(os.path.join(save_path, f"epoch{epoch}.png"))
+    # plt.show()
 
 
 if __name__ == "__main__":

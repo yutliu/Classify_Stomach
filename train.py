@@ -14,93 +14,15 @@ from logger import creat_logger
 from models.resnet import resnet152
 from efficientnet_pytorch import EfficientNet
 
-
-def train_model(args, model, criterion, optimizer, scheduler, num_epochs, dataset_sizes, logging):
-    since = time.time()
-    resumed = False
-
-    best_model_wts = model.state_dict()
-
-    for epoch in range(args.start_epoch+1,num_epochs):
-
-        # Each epoch has a training and validation phase
-        all_phase = dataloders.keys()
-        all_phase = ['val']
-        eval_value = 0.0
-        for phase in all_phase:
-            if phase == 'train':
-                running_loss = 0.0
-                running_corrects = 0
-                model.train()  # Set model to training mode
-                tic_batch = time.time()
-                # Iterate over data.
-                for i, (inputs, labels) in enumerate(dataloders[phase]):
-                    # wrap them in Variable
-                    if use_gpu:
-                        inputs = inputs.cuda()
-                        labels = labels.cuda()
-                    else:
-                        inputs, labels = inputs, labels
-
-                    # zero the parameter gradients
-                    optimizer.zero_grad()
-
-                    # forward
-                    outputs = model(inputs)
-                    _, preds = torch.max(outputs.data, 1)
-                    loss = criterion(outputs, labels)
-
-                    # backward + optimize  if in training phase
-                    loss.backward()
-                    optimizer.step()
-                    if args.start_epoch > 0 and (not resumed):
-                        scheduler.step(args.start_epoch+1)
-                        resumed = True
-                    else:
-                        scheduler.step(epoch)
-
-                    # statistics
-                    running_loss += loss.data.item()
-                    running_corrects += torch.sum(preds == labels.data).float()
-
-                    batch_loss = running_loss / ((i+1)*args.batch_size)
-                    batch_acc = running_corrects / ((i+1)*args.batch_size)
-
-                    if i % args.print_freq == 0:
-                        logging.info('[Epoch {}/{}]-[batch:{}/{}] lr:{:.6f} {} Loss: {:.6f}  Acc: {:.4f}  Time: {:.4f} batch/sec'.format(
-                              epoch, num_epochs - 1, i, round(dataset_sizes[phase]/args.batch_size)-1, scheduler.get_lr()[0], phase,
-                            batch_loss, batch_acc, args.print_freq/(time.time()-tic_batch)))
-                        tic_batch = time.time()
-
-                epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = running_corrects / dataset_sizes[phase]
-
-                logging.info('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                    phase, epoch_loss, epoch_acc))
-            else:
-                eval_value = test_model(model, dataloders[phase], logging, args, epoch)
-
-        if (epoch+1) % args.save_epoch_freq == 0:
-            torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.3f}.pth").format(epoch, eval_value))
-
-    time_elapsed = time.time() - since
-    logging.info('Training complete in {:.0f}m {:.0f}s'.format(
-        time_elapsed // 60, time_elapsed % 60))
-
-    # load best model weights
-    model.load_state_dict(best_model_wts)
-    return model
-
-if __name__ == '__main__':
-
+def main():
     parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
     parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
     # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/imgenet-2/")
-    parser.add_argument('--batch_size', type=int, default=80)
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--img_size', type=int, default=244)
     parser.add_argument('--num_class', type=int, default=14)
-    parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--num_epochs', type=int, default=800)
+    parser.add_argument('--lr', type=float, default=0.1)
     parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--gpus', type=str, default='0,1')
     parser.add_argument('--print_freq', type=int, default=10)
@@ -155,17 +77,98 @@ if __name__ == '__main__':
     optimizer_ft = optim.Adam(model.parameters(), lr=args.lr)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=8, gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=20, gamma=0.1)
     logging = creat_logger()
 
     for key, value in vars(args).items():
         logging.info(f"{key}: {value}")
 
     model = train_model(args=args,
-                           model=model,
-                           criterion=criterion,
-                           optimizer=optimizer_ft,
-                           scheduler=exp_lr_scheduler,
-                           num_epochs=args.num_epochs,
-                           dataset_sizes=dataset_sizes,
-                           logging = logging)
+                        model=model,
+                        criterion=criterion,
+                        dataloders=dataloders,
+                        optimizer=optimizer_ft,
+                        scheduler=exp_lr_scheduler,
+                        num_epochs=args.num_epochs,
+                        dataset_sizes=dataset_sizes,
+                        logging=logging)
+
+
+def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_epochs, dataset_sizes, logging):
+    since = time.time()
+    resumed = False
+
+    best_model_wts = model.state_dict()
+
+    for epoch in range(args.start_epoch+1,num_epochs):
+
+        # Each epoch has a training and validation phase
+        all_phase = dataloders.keys()
+        # all_phase = ['val']
+        eval_value = 0.0
+        for phase in all_phase:
+            if phase == 'train':
+                running_loss = 0.0
+                running_corrects = 0
+                model.train()  # Set model to training mode
+                tic_batch = time.time()
+                # Iterate over data.
+                for i, (inputs, labels) in enumerate(dataloders[phase]):
+                    # wrap them in Variable
+                    if args.gpus is not None:
+                        inputs = inputs.cuda()
+                        labels = labels.cuda()
+                    else:
+                        inputs, labels = inputs, labels
+
+                    # zero the parameter gradients
+                    optimizer.zero_grad()
+
+                    # forward
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs.data, 1)
+                    loss = criterion(outputs, labels)
+
+                    # backward + optimize  if in training phase
+                    loss.backward()
+                    optimizer.step()
+                    if args.start_epoch > 0 and (not resumed):
+                        scheduler.step(args.start_epoch+1)
+                        resumed = True
+                    else:
+                        scheduler.step(epoch)
+
+                    # statistics
+                    running_loss += loss.data.item()
+                    running_corrects += torch.sum(preds == labels.data).float()
+
+                    batch_loss = running_loss / ((i+1)*args.batch_size)
+                    batch_acc = running_corrects / ((i+1)*args.batch_size)
+
+                    if i % args.print_freq == 0:
+                        logging.info('[Epoch {}/{}]-[batch:{}/{}] lr:{:.2e} {} Loss: {:.6f}  Acc: {:.4f}  Time: {:.4f} batch/sec'.format(
+                            epoch, num_epochs - 1, i, round(dataset_sizes[phase]/args.batch_size)-1, scheduler.get_lr()[0], phase,
+                            batch_loss, batch_acc, args.print_freq/(time.time()-tic_batch)))
+                        tic_batch = time.time()
+
+                epoch_loss = running_loss / dataset_sizes[phase]
+                epoch_acc = running_corrects / dataset_sizes[phase]
+
+                logging.info('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                    phase, epoch_loss, epoch_acc))
+            else:
+                eval_value = test_model(model, dataloders[phase], logging, args, epoch)
+
+        if (epoch+1) % args.save_epoch_freq == 0:
+            torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.3f}.pth").format(epoch, eval_value))
+
+    time_elapsed = time.time() - since
+    logging.info('Training complete in {:.0f}m {:.0f}s'.format(
+        time_elapsed // 60, time_elapsed % 60))
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+    return model
+
+if __name__ == '__main__':
+    main()
