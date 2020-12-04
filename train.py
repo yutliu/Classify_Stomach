@@ -14,23 +14,24 @@ from logger import creat_logger
 from models.resnet import resnet152
 from efficientnet_pytorch import EfficientNet
 
+
 def main():
     parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
     parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
     # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/imgenet-2/")
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--img_size', type=int, default=244)
     parser.add_argument('--num_class', type=int, default=14)
-    parser.add_argument('--num_epochs', type=int, default=800)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.1)
     parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--gpus', type=str, default='0,1')
     parser.add_argument('--print_freq', type=int, default=10)
     parser.add_argument('--save_epoch_freq', type=int, default=1)
     parser.add_argument('--save_path', type=str, default="output")
-    parser.add_argument('--resume', type=str, default="", help="For training from one checkpoint")
+    parser.add_argument('--resume', type=str, default="/home/liuyuting/Code/Classify_Stomach/savepths_14classes/epoch98_eval0.312.pth", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
-    parser.add_argument('--confumatrix_path', type=str, default="output/", help="draw confusion matrix if not empty")
+    parser.add_argument('--save_vis_path', type=str, default="output/", help="draw confusion matrix if not empty")
     parser.add_argument('--model', type=str, default="resnet152", help="choose model")
 
     args = parser.parse_args()
@@ -77,7 +78,7 @@ def main():
     optimizer_ft = optim.Adam(model.parameters(), lr=args.lr)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=20, gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=10, gamma=0.1)
     logging = creat_logger()
 
     for key, value in vars(args).items():
@@ -103,8 +104,8 @@ def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_ep
     for epoch in range(args.start_epoch+1,num_epochs):
 
         # Each epoch has a training and validation phase
-        all_phase = dataloders.keys()
-        # all_phase = ['val']
+        # all_phase = dataloders.keys()
+        all_phase = ['val']
         eval_value = 0.0
         for phase in all_phase:
             if phase == 'train':

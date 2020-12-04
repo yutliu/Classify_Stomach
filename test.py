@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-from utils import plot_confusion_matrix
+from utils import plot_confusion_matrix, plot_surveychart
 
 
 def test_model(model, dataloader, logging, args, epoch):
@@ -28,8 +28,9 @@ def test_model(model, dataloader, logging, args, epoch):
     epoch_acc = running_corrects / total_pre_number
 
     logging.info('test Acc: {:.4f}'.format(epoch_acc))
-    if args.confumatrix_path != '':
-        plot_confusion_matrix(all_labels_list, all_pre_list, args.confumatrix_path, epoch, args.data_dir)
+    if args.save_vis_path != '':
+        plot_confusion_matrix(all_labels_list, all_pre_list, args.save_vis_path, epoch, args.data_dir)
+        plot_surveychart(all_labels_list, all_pre_list, args.save_vis_path, epoch, args.data_dir)
     return epoch_acc
 
 
