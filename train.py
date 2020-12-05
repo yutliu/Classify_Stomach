@@ -13,14 +13,15 @@ from test import test_model
 from logger import creat_logger
 from models.resnet import resnet152
 from efficientnet_pytorch import EfficientNet
+from models.PMG.PMG_model import build_model as PMG
 
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
     parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
     # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/imgenet-2/")
-    parser.add_argument('--batch_size', type=int, default=24)
-    parser.add_argument('--img_size', type=int, default=244)
+    parser.add_argument('--batch_size', type=int, default=36)
+    parser.add_argument('--img_size', type=int, default=448)
     parser.add_argument('--num_class', type=int, default=14)
     parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.1)
@@ -29,10 +30,10 @@ def main():
     parser.add_argument('--print_freq', type=int, default=10)
     parser.add_argument('--save_epoch_freq', type=int, default=1)
     parser.add_argument('--save_path', type=str, default="output")
-    parser.add_argument('--resume', type=str, default="/home/liuyuting/Code/Classify_Stomach/savepths_14classes/epoch98_eval0.312.pth", help="For training from one checkpoint")
+    parser.add_argument('--resume', type=str, default="", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
     parser.add_argument('--save_vis_path', type=str, default="output/", help="draw confusion matrix if not empty")
-    parser.add_argument('--model', type=str, default="resnet152", help="choose model")
+    parser.add_argument('--model', type=str, default="PMG", help="choose model")
 
     args = parser.parse_args()
 
@@ -53,6 +54,8 @@ def main():
         model = resnet152(pretrained=True, num_classes=args.num_class)
     elif "efficientnet" in args.model:
         model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=args.num_class)
+    elif "PMG" in args.model:
+        model = PMG(pretrained=True, num_classes=args.num_class)
     else:
         assert 0, "model name does not exist!"
 
@@ -104,8 +107,8 @@ def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_ep
     for epoch in range(args.start_epoch+1,num_epochs):
 
         # Each epoch has a training and validation phase
-        # all_phase = dataloders.keys()
-        all_phase = ['val']
+        all_phase = dataloders.keys()
+        # all_phase = ['val']
         eval_value = 0.0
         for phase in all_phase:
             if phase == 'train':
