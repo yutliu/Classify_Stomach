@@ -9,7 +9,7 @@ import os
 from models.resnext import *
 import argparse
 from MedicalDataLoader import ImageNetData
-from test import test_model
+from test import test_model, test_model_saveimg
 from logger import creat_logger
 from models.resnet import resnet152
 from efficientnet_pytorch import EfficientNet
@@ -20,10 +20,10 @@ def main():
     parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
     parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
     # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/imgenet-2/")
-    parser.add_argument('--batch_size', type=int, default=36)
+    parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--img_size', type=int, default=448)
     parser.add_argument('--num_class', type=int, default=14)
-    parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--num_epochs', type=int, default=200)
     parser.add_argument('--lr', type=float, default=0.1)
     parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--gpus', type=str, default='0,1')
@@ -32,13 +32,20 @@ def main():
     parser.add_argument('--save_path', type=str, default="output")
     parser.add_argument('--resume', type=str, default="", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
-    parser.add_argument('--save_vis_path', type=str, default="output/", help="draw confusion matrix if not empty")
-    parser.add_argument('--model', type=str, default="PMG", help="choose model")
+    parser.add_argument('--save_vis_path', type=str, default="output", help="draw confusion matrix if not empty")
+    parser.add_argument('--model', type=str, default="PMG", help="Choose model")
+    parser.add_argument('--error_image_path', type=str, default="errorimg/", help="Save pictures with misclassification errors")
+    parser.add_argument('--phase', type=str, default="trainval", help="trainval or val")
+    parser.add_argument('--precision_conf', type=float, default=0.0, help="only choose >precision_conf result")
 
     args = parser.parse_args()
 
     if not os.path.exists(args.save_path):
-        os.makedirs(args.save_path)
+        os.makedirs(args.save_path, exist_ok=True)
+
+    if not os.path.exists(args.error_image_path):
+        os.makedirs(args.error_image_path, exist_ok=True)
+
 
     # read data
     dataloders, dataset_sizes = ImageNetData(args)
@@ -107,8 +114,12 @@ def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_ep
     for epoch in range(args.start_epoch+1,num_epochs):
 
         # Each epoch has a training and validation phase
-        all_phase = dataloders.keys()
-        # all_phase = ['val']
+        if args.phase == "trainval":
+            all_phase = dataloders.keys()
+        elif args.phase == "val":
+            all_phase = ['val']
+        else:
+            assert 0, "phase is error!"
         eval_value = 0.0
         for phase in all_phase:
             if phase == 'train':

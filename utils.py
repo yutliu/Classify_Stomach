@@ -70,8 +70,8 @@ def plot_confusion_matrix(y_true, y_pred, save_path, epoch, legend_path):
 
     ax.set_title("胃镜部位分类混淆矩阵")
     fig.tight_layout()
-    plt.savefig(os.path.join(save_path, f"epoch{epoch}_confumatrix.png"))
-    # plt.show()
+    # plt.savefig(os.path.join(save_path, f"epoch{epoch}_confumatrix.png"))
+    plt.show()
 
 
 def survey(results, category_names):
@@ -150,8 +150,8 @@ def plot_surveychart(y_true, y_pred, save_path, epoch, legend_path):
 
     category_names = ['正确分类数量', '错误分类数量']
     survey(survey_dict, category_names)
-    plt.savefig(os.path.join(save_path, f"epoch{epoch}_surveychart.png"))
-    # plt.show()
+    # plt.savefig(os.path.join(save_path, f"epoch{epoch}_surveychart.png"))
+    plt.show()
 
 if __name__ == "__main__":
     y_true = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]

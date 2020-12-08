@@ -37,6 +37,7 @@ def ImageNetData(args):
 
     image_datasets['train'] = ImageNetTrainDataSet(os.path.join(args.data_dir, "train"), data_transforms['train'])
     image_datasets['val'] = ImageNetValDataSet(os.path.join(args.data_dir, "val"), data_transforms['val'])
+    # image_datasets['val'] = ImageNetValDataSet(os.path.join(args.data_dir, "train"), data_transforms['val'])
 
     """train and val data and label"""
     dataloders = {x: torch.utils.data.DataLoader(image_datasets[x],

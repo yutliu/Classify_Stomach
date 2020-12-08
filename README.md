@@ -1,28 +1,25 @@
-## This is the PyTorch implement of ResNeXt (train on ImageNet dataset)
-
-Paper: [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/abs/1611.05431)
-
-
+## Classification for Stomach
 # Usage
 
 ### Prepare data
 
-This code takes ImageNet dataset as example. You can download ImageNet dataset and put them as follows. I only provide `ILSVRC2012_dev_kit_t12` due to the restriction of memory, in other words, you need download `ILSVRC2012_img_train` and `ILSVRC2012_img_val`.
-
+The data structure is as follows
 ```
-├── train.py # train script
-├── resnext.py # network of resnext
-├── read_ImageNetData.py # ImageNet dataset read script
-├── ImageData # train and validation data
-	├── ILSVRC2012_img_train
-		├── n01440764
-		├──    ...
-		├── n15075141
-	├── ILSVRC2012_img_val
-	├── ILSVRC2012_dev_kit_t12
-		├── data
-			├── ILSVRC2012_validation_ground_truth.txt
-			├── meta.mat # the map between train file name and label
+├── RootData # train and validation data
+	├── train
+            ├── 0
+                ├── 9205c1f6b52c11eabd01000c29e37e62.jpg
+                ├──    ...
+                ├── 9244250eb52c11eabd01000c29e37e62.jpg
+            ├── 1
+            ├──    ...
+            ├── 28
+    ├── val
+        ├── 0
+        ├── 1
+        ├──    ...
+        ├── 28
+    ├── README.txt #index and class name
 ```
 
 ### Train

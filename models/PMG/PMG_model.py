@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-from models.PMG.PMG_resnet import resnet50
+from models.PMG.PMG_resnet import resnet50, resnet101, resnet152
 
 
 class PMG(nn.Module):
