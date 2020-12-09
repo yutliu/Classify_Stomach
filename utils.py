@@ -4,9 +4,34 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 from collections import defaultdict
+import logging
+import time
 
 from pylab import mpl
 mpl.rcParams['font.sans-serif'] = ['SimHei']
+
+
+
+def creat_logger(phase):
+    logger = logging.getLogger()
+    logger.setLevel('DEBUG')
+    BASIC_FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
+    DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(BASIC_FORMAT, DATE_FORMAT)
+    chlr = logging.StreamHandler()
+    chlr.setFormatter(formatter)
+    chlr.setLevel('INFO')
+    save_path = "logs/"
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+    filename = time.strftime("%Y%m%d_%H%M", time.localtime())
+    fhlr = logging.FileHandler(os.path.join(save_path, f'{phase}_{filename}.log'))
+    fhlr.setFormatter(formatter)
+    logger.addHandler(chlr)
+    logger.addHandler(fhlr)
+    logger.info('This is a Log')
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    return logger
 
 
 def getMirrorImage(orgin_img):
@@ -70,8 +95,8 @@ def plot_confusion_matrix(y_true, y_pred, save_path, epoch, legend_path):
 
     ax.set_title("胃镜部位分类混淆矩阵")
     fig.tight_layout()
-    # plt.savefig(os.path.join(save_path, f"epoch{epoch}_confumatrix.png"))
-    plt.show()
+    plt.savefig(os.path.join(save_path, f"epoch{epoch}_confumatrix.png"))
+    # plt.show()
 
 
 def survey(results, category_names):
@@ -150,8 +175,8 @@ def plot_surveychart(y_true, y_pred, save_path, epoch, legend_path):
 
     category_names = ['正确分类数量', '错误分类数量']
     survey(survey_dict, category_names)
-    # plt.savefig(os.path.join(save_path, f"epoch{epoch}_surveychart.png"))
-    plt.show()
+    plt.savefig(os.path.join(save_path, f"epoch{epoch}_surveychart.png"))
+    # plt.show()
 
 if __name__ == "__main__":
     y_true = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]

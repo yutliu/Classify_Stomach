@@ -8,9 +8,9 @@ import time
 import os
 from models.resnext import *
 import argparse
-from MedicalDataLoader import ImageNetData
+from MedicalDataLoader import medicalData
 from test import test_model, test_model_saveimg
-from logger import creat_logger
+from utils import creat_logger
 from models.resnet import resnet152
 from efficientnet_pytorch import EfficientNet
 from models.PMG.PMG_model import build_model as PMG
@@ -35,7 +35,7 @@ def main():
     parser.add_argument('--save_vis_path', type=str, default="output", help="draw confusion matrix if not empty")
     parser.add_argument('--model', type=str, default="PMG", help="Choose model")
     parser.add_argument('--error_image_path', type=str, default="errorimg/", help="Save pictures with misclassification errors")
-    parser.add_argument('--phase', type=str, default="trainval", help="trainval or val")
+    parser.add_argument('--phase', type=str, default="val", help="trainval or val")
     parser.add_argument('--precision_conf', type=float, default=0.0, help="only choose >precision_conf result")
 
     args = parser.parse_args()
@@ -48,7 +48,7 @@ def main():
 
 
     # read data
-    dataloders, dataset_sizes = ImageNetData(args)
+    dataloders, dataset_sizes = medicalData(args)
 
     # use gpu or not
     use_gpu = torch.cuda.is_available()
@@ -89,7 +89,7 @@ def main():
 
     # Decay LR by a factor of 0.1 every 7 epochs
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=10, gamma=0.1)
-    logging = creat_logger()
+    logging = creat_logger(args.phase)
 
     for key, value in vars(args).items():
         logging.info(f"{key}: {value}")

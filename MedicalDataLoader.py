@@ -6,8 +6,9 @@ import cv2
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm']
 
-def ImageNetData(args):
-# data_transform, pay attention that the input of Normalize() is Tensor and the input of RandomResizedCrop() or RandomHorizontalFlip() is PIL Image
+def medicalData(args):
+    # data_transform, pay attention that the input of Normalize() is
+    # Tensor and the input of RandomResizedCrop() or RandomHorizontalFlip() is PIL Image
     data_transforms = {
         'train': transforms.Compose([
             transforms.Resize((1080, 1080)),
@@ -17,14 +18,6 @@ def ImageNetData(args):
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
-        # 'train_fewsamples': transforms.Compose([
-        #     transforms.Resize((1080, 1080)),
-        #     transforms.RandomCrop((args.img_size, args.img_size)),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.RandomVerticalFlip(),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        # ]),
         'val': transforms.Compose([
             transforms.Resize((args.img_size, args.img_size)),
             # transforms.CenterCrop((1920, 1080)),
@@ -33,10 +26,9 @@ def ImageNetData(args):
         ]),
     }
     image_datasets = {}
-    #image_datasets['train'] = datasets.ImageFolder(os.path.join(args.data_dir, 'ILSVRC2012_img_train'), data_transforms['train'])
 
-    image_datasets['train'] = ImageNetTrainDataSet(os.path.join(args.data_dir, "train"), data_transforms['train'])
-    image_datasets['val'] = ImageNetValDataSet(os.path.join(args.data_dir, "val"), data_transforms['val'])
+    image_datasets['train'] = MedicalTrainDataSet(os.path.join(args.data_dir, "train"), data_transforms['train'])
+    image_datasets['val'] = MedicalValDataSet(os.path.join(args.data_dir, "val"), data_transforms['val'])
     # image_datasets['val'] = ImageNetValDataSet(os.path.join(args.data_dir, "train"), data_transforms['val'])
 
     """train and val data and label"""
@@ -45,18 +37,9 @@ def ImageNetData(args):
                                                  shuffle=True,
                                                  num_workers=args.num_workers) for x in ['train', 'val']}
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
-
-    """val data and label"""
-    # dataloders = {x: torch.utils.data.DataLoader(image_datasets[x],
-    #                                              batch_size=args.batch_size,
-    #                                              shuffle=False,
-    #                                              num_workers=args.num_workers) for x in ['val']}
-    # dataset_sizes = {x: len(image_datasets[x]) for x in ['val']}
-
-
     return dataloders, dataset_sizes
 
-class ImageNetTrainDataSet(torch.utils.data.Dataset):
+class MedicalTrainDataSet(torch.utils.data.Dataset):
     def __init__(self, root_dir, data_transforms):
         dirpath = os.listdir(root_dir)
         self.data_transforms = data_transforms
@@ -72,9 +55,10 @@ class ImageNetTrainDataSet(torch.utils.data.Dataset):
 
     def __getitem__(self, item):
         data, label = self.imgs[item]
-        img = cv2.imread(data)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(img)
+        img = Image.open(data)
+        # img = cv2.imread(data)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = Image.fromarray(img)
         if self.data_transforms is not None:
             try:
                 img = self.data_transforms(img)
@@ -115,7 +99,7 @@ class ImageNetTrainDataSet(torch.utils.data.Dataset):
 
 
 
-class ImageNetValDataSet(torch.utils.data.Dataset):
+class MedicalValDataSet(torch.utils.data.Dataset):
     def __init__(self, root_dir, data_transforms):
         dirpath = os.listdir(root_dir)
         self.data_transforms = data_transforms
@@ -131,9 +115,10 @@ class ImageNetValDataSet(torch.utils.data.Dataset):
 
     def __getitem__(self, item):
         data, label = self.imgs[item]
-        img = cv2.imread(data)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(img)
+        img = Image.open(data)
+        # img = cv2.imread(data)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = Image.fromarray(img)
         if self.data_transforms is not None:
             try:
                 img = self.data_transforms(img)
