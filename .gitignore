@@ -93,3 +93,5 @@ output/
 *.pth
 savepths/
 savepths_14classes
+output*
+savepths*

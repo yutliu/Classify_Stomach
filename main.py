@@ -9,43 +9,46 @@ import os
 from models.resnext import *
 import argparse
 from MedicalDataLoader import medicalData
-from test import test_model, test_model_saveimg
+from test import test_model, test_model_saveimg, test_video
 from utils import creat_logger
-from models.resnet import resnet152
+from models.resnet import resnet152, resnet50
 from efficientnet_pytorch import EfficientNet
 from models.PMG.PMG_model import build_model as PMG
+from models.resnet_nofc import resnet50_nofc
 
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
-    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
-    # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/imgenet-2/")
-    parser.add_argument('--batch_size', type=int, default=24)
+    # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
+    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/three_class_data/")
+    parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--img_size', type=int, default=448)
-    parser.add_argument('--num_class', type=int, default=14)
-    parser.add_argument('--num_epochs', type=int, default=200)
+    parser.add_argument('--num_class', type=int, default=3)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.1)
     parser.add_argument('--num_workers', type=int, default=16)
-    parser.add_argument('--gpus', type=str, default='0,1')
+    parser.add_argument('--gpus', type=str, default='0, 1')
     parser.add_argument('--print_freq', type=int, default=10)
     parser.add_argument('--save_epoch_freq', type=int, default=1)
-    parser.add_argument('--save_path', type=str, default="output")
-    parser.add_argument('--resume', type=str, default="", help="For training from one checkpoint")
+    parser.add_argument('--save_path', type=str, default="output_3classes")
+    parser.add_argument('--resume', type=str, default="savepths_3classes/epoch33_eval0.868.pth", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
-    parser.add_argument('--save_vis_path', type=str, default="output", help="draw confusion matrix if not empty")
+    parser.add_argument('--save_vis_path', type=str, default="vis", help="draw confusion matrix if not empty")
     parser.add_argument('--model', type=str, default="PMG", help="Choose model")
     parser.add_argument('--error_image_path', type=str, default="errorimg/", help="Save pictures with misclassification errors")
     parser.add_argument('--phase', type=str, default="val", help="trainval or val")
-    parser.add_argument('--precision_conf', type=float, default=0.0, help="only choose >precision_conf result")
+    parser.add_argument('--precision_conf', type=float, default=0.0, help="only choose > precision_conf result")
 
     args = parser.parse_args()
 
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path, exist_ok=True)
 
-    if not os.path.exists(args.error_image_path):
-        os.makedirs(args.error_image_path, exist_ok=True)
+    # if not os.path.exists(args.error_image_path):
+    #     os.makedirs(args.error_image_path, exist_ok=True)
 
+    if not os.path.exists(args.save_vis_path):
+        os.makedirs(args.save_vis_path, exist_ok=True)
 
     # read data
     dataloders, dataset_sizes = medicalData(args)
@@ -55,14 +58,16 @@ def main():
     print("Let's use gpu: {}".format(args.gpus))
 
     # get model
-    if "resnext" in args.model:
-        model = resnext101(num_classes=args.num_class, img_size=args.img_size)
-    elif "resnet" in args.model:
-        model = resnet152(pretrained=True, num_classes=args.num_class)
-    elif "efficientnet" in args.model:
+    if "resnext" == args.model:
+        model = resnext152(num_classes=args.num_class, img_size=args.img_size)
+    elif "resnet" == args.model:
+        model = resnet50(pretrained=True, num_classes=args.num_class)
+    elif "efficientnet" == args.model:
         model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=args.num_class)
-    elif "PMG" in args.model:
+    elif "PMG" == args.model:
         model = PMG(pretrained=True, num_classes=args.num_class)
+    elif "resnet_nofc" == args.model:
+        model = resnet50_nofc(num_classes=args.num_class)
     else:
         assert 0, "model name does not exist!"
 
@@ -88,7 +93,7 @@ def main():
     optimizer_ft = optim.Adam(model.parameters(), lr=args.lr)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=10, gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=15, gamma=0.1)
     logging = creat_logger(args.phase)
 
     for key, value in vars(args).items():
@@ -111,15 +116,22 @@ def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_ep
 
     best_model_wts = model.state_dict()
 
+    if args.phase == "trainval":
+        all_phase = dataloders.keys()
+    elif args.phase == "val":
+        all_phase = ['val']
+    else:
+        assert 0, "phase is error!"
+
+    if args.phase == "val":
+        eval_value = test_model(model, dataloders["val"], logging, args)
+        # test_video(model, dataloders["val"], logging, args)
+        return model
+
+
     for epoch in range(args.start_epoch+1,num_epochs):
 
         # Each epoch has a training and validation phase
-        if args.phase == "trainval":
-            all_phase = dataloders.keys()
-        elif args.phase == "val":
-            all_phase = ['val']
-        else:
-            assert 0, "phase is error!"
         eval_value = 0.0
         for phase in all_phase:
             if phase == 'train':
@@ -173,9 +185,12 @@ def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_ep
                     phase, epoch_loss, epoch_acc))
             else:
                 eval_value = test_model(model, dataloders[phase], logging, args, epoch)
+                # test_video(model, dataloders[phase], logging, args)
+
 
         if (epoch+1) % args.save_epoch_freq == 0:
             torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.3f}.pth").format(epoch, eval_value))
+            break
 
     time_elapsed = time.time() - since
     logging.info('Training complete in {:.0f}m {:.0f}s'.format(
