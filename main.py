@@ -11,33 +11,33 @@ import argparse
 from MedicalDataLoader import medicalData
 from test import test_model, test_model_saveimg, test_video
 from utils import creat_logger
-from models.resnet import resnet152, resnet50
+from models.resnet import resnet152, resnet101, resnet50
 from efficientnet_pytorch import EfficientNet
 from models.PMG.PMG_model import build_model as PMG
 from models.resnet_nofc import resnet50_nofc
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PyTorch implementation of ResNeXt")
+    parser = argparse.ArgumentParser(description="Classify Stomach")
     # parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
-    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/three_class_data/")
-    parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--img_size', type=int, default=448)
-    parser.add_argument('--num_class', type=int, default=3)
+    parser.add_argument('--data_dir', type=str, default="/media/adminer/data/Medical/StomachClassification_trainval_14classes/")
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--img_size', type=int, default=224)
+    parser.add_argument('--num_class', type=int, default=14)
     parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--num_workers', type=int, default=16)
-    parser.add_argument('--gpus', type=str, default='0, 1')
+    parser.add_argument('--gpus', type=str, default='0')
     parser.add_argument('--print_freq', type=int, default=10)
     parser.add_argument('--save_epoch_freq', type=int, default=1)
-    parser.add_argument('--save_path', type=str, default="output_3classes")
-    parser.add_argument('--resume', type=str, default="savepths_3classes/epoch33_eval0.868.pth", help="For training from one checkpoint")
+    parser.add_argument('--save_path', type=str, default="output_14classes")
+    parser.add_argument('--resume', type=str, default="savepths_14classes/epoch3_eval0.624.pth", help="For training from one checkpoint")
     parser.add_argument('--start_epoch', type=int, default=0, help="Corresponding to the epoch of resume ")
     parser.add_argument('--save_vis_path', type=str, default="vis", help="draw confusion matrix if not empty")
-    parser.add_argument('--model', type=str, default="PMG", help="Choose model")
+    parser.add_argument('--model', type=str, default="resnet", help="Choose model")
     parser.add_argument('--error_image_path', type=str, default="errorimg/", help="Save pictures with misclassification errors")
     parser.add_argument('--phase', type=str, default="val", help="trainval or val")
-    parser.add_argument('--precision_conf', type=float, default=0.0, help="only choose > precision_conf result")
+    parser.add_argument('--precision_conf', type=float, default=0.9, help="only choose > precision_conf result")
 
     args = parser.parse_args()
 
@@ -59,9 +59,9 @@ def main():
 
     # get model
     if "resnext" == args.model:
-        model = resnext152(num_classes=args.num_class, img_size=args.img_size)
+        model = resnext101(num_classes=args.num_class, img_size=args.img_size)
     elif "resnet" == args.model:
-        model = resnet50(pretrained=True, num_classes=args.num_class)
+        model = resnet101(pretrained=True, num_classes=args.num_class)
     elif "efficientnet" == args.model:
         model = EfficientNet.from_pretrained('efficientnet-b7', num_classes=args.num_class)
     elif "PMG" == args.model:
@@ -190,7 +190,6 @@ def train_model(args, model, criterion, dataloders, optimizer, scheduler, num_ep
 
         if (epoch+1) % args.save_epoch_freq == 0:
             torch.save(model, os.path.join(args.save_path, "epoch{}_eval{:.3f}.pth").format(epoch, eval_value))
-            break
 
     time_elapsed = time.time() - since
     logging.info('Training complete in {:.0f}m {:.0f}s'.format(

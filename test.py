@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 from utils import plot_confusion_matrix, plot_surveychart
-from draw_ROC import draw_ROCcurve_3class, draw_ROCcurve_cancer, draw_ROCcurve_inflam
+# from draw_ROC import draw_ROCcurve_3class, draw_ROCcurve_cancer, draw_ROCcurve_inflam
 from collections import defaultdict
 import os
 import numpy as np
@@ -70,27 +70,29 @@ def test_model(model, dataloader, logging, args, epoch=0):
         # statistics
         running_corrects += torch.sum(preds == labels.data).float()
 
-        """ROC"""
-        roc_batch_label = np.zeros((labels.cpu().numpy().shape[0], 3))
-        for row_id, each_label in enumerate(labels.cpu().numpy()):
-            roc_batch_label[row_id, each_label] = 1
-        roc_label.extend(roc_batch_label)
-        roc_score.extend(norm_outputs.cpu().numpy())
+        """ROC curve"""
+        # roc_batch_label = np.zeros((labels.cpu().numpy().shape[0], 3))
+        # for row_id, each_label in enumerate(labels.cpu().numpy()):
+        #     roc_batch_label[row_id, each_label] = 1
+        # roc_label.extend(roc_batch_label)
+        # roc_score.extend(norm_outputs.cpu().numpy())
 
-    # all_pre_list.extend(list(range(args.num_class)))
-    # all_labels_list.extend(list(range(args.num_class)))
-    roc_label = np.stack(roc_label, axis=0)
-    roc_score = np.stack(roc_score, axis=0)
+
+    all_pre_list.extend(list(range(args.num_class)))
+    all_labels_list.extend(list(range(args.num_class)))
+    """ROC curve"""
+    # roc_label = np.stack(roc_label, axis=0)
+    # roc_score = np.stack(roc_score, axis=0)
 
     epoch_acc = running_corrects / total_pre_number
     logging.info('test Acc: {:.4f}'.format(epoch_acc))
     if args.save_vis_path != '':
         # pass
-        draw_ROCcurve_cancer(all_labels_list, roc_score, all_img_path)
-        draw_ROCcurve_inflam(all_labels_list, roc_score, all_img_path)
+        # draw_ROCcurve_cancer(all_labels_list, roc_score, all_img_path)
+        # draw_ROCcurve_inflam(all_labels_list, roc_score, all_img_path)
         # sort_img_and_result(all_labels_list, all_pre_list, all_img_path, roc_score)
         # draw_ROCcurve_3class(roc_label, roc_score)
-        # plot_confusion_matrix(all_labels_list, all_pre_list, args.save_vis_path, epoch, args.data_dir)
+        plot_confusion_matrix(all_labels_list, all_pre_list, args.save_vis_path, epoch, args.data_dir)
         # plot_surveychart(all_labels_list, all_pre_list, args.save_vis_path, epoch, args.data_dir)
     return epoch_acc
 

@@ -8,7 +8,7 @@ import logging
 import time
 
 from pylab import mpl
-mpl.rcParams['font.sans-serif'] = ['Arial']
+mpl.rcParams['font.sans-serif'] = ['SimHei']
 
 
 
@@ -70,14 +70,14 @@ def plot_confusion_matrix(y_true, y_pred, save_path, epoch, legend_path):
     #count confusion matrix
     confusion_mat = confusion_matrix(y_true, y_pred)
 
-    #average
-    confusion_mat_norm = confusion_mat[:]
-    confusion_mat_norm = confusion_mat_norm / np.sum(confusion_mat_norm, axis=1)
+    #normlization
+    # confusion_mat_norm = confusion_mat[:]
+    # confusion_mat_norm = confusion_mat_norm / np.sum(confusion_mat_norm, axis=1)
 
     fig, ax = plt.subplots()
     plt.rcParams['savefig.dpi'] = 330
     plt.rcParams['figure.dpi'] = 330
-    im = ax.imshow(confusion_mat_norm, cmap=plt.cm.Blues)
+    im = ax.imshow(confusion_mat, cmap=plt.cm.Blues)
 
     # show all ticks...
     ax.set_xticks(np.arange(len(class_names)))
